@@ -89,7 +89,7 @@ export class UserService {
           where: { username: updateUserDto.username },
         });
 
-        if (existsUserUsername) {
+        if (existsUserUsername && existsUserUsername.id !== id) {
           throw new ConflictException(
             `User with username ${updateUserDto.username} already exists`,
           );
@@ -101,7 +101,7 @@ export class UserService {
           where: { email: updateUserDto.email },
         });
 
-        if (existsUserEmail) {
+        if (existsUserEmail && existsUserEmail.id !== id) {
           throw new ConflictException(
             `User with email ${updateUserDto.email} already exists`,
           );
@@ -113,7 +113,7 @@ export class UserService {
           where: { phone_number: updateUserDto.phone_number },
         });
 
-        if (existsUserPhone) {
+        if (existsUserPhone && existsUserPhone.id !== id) {
           throw new ConflictException(
             `User with phone ${updateUserDto.phone_number} already exists`,
           );
