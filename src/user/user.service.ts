@@ -84,7 +84,7 @@ export class UserService {
 
   async update(id: number, updateUserDto: UpdateUserDto) {
     try {
-      if (updateUserDto.username) {
+      if (updateUserDto.username != null) {
         const existsUserUsername = await this.userRepo.findOne({
           where: { username: updateUserDto.username },
         });
@@ -96,7 +96,7 @@ export class UserService {
         }
       }
 
-      if (updateUserDto.email) {
+      if (updateUserDto.email != null) {
         const existsUserEmail = await this.userRepo.findOne({
           where: { email: updateUserDto.email },
         });
@@ -108,7 +108,7 @@ export class UserService {
         }
       }
 
-      if (updateUserDto.phone_number) {
+      if (updateUserDto.phone_number != null) {
         const existsUserPhone = await this.userRepo.findOne({
           where: { phone_number: updateUserDto.phone_number },
         });
