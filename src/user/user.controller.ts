@@ -1,82 +1,68 @@
 import {
+  Body,
   Controller,
   Get,
   Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-  ParseIntPipe,
+  Req,
+  Res,
+  UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
-import { UserEntity } from './entities/user.entity';
+import { ConfirmOtpDto } from './dto/confirmOtp-dto';
+import { SignInUserDto } from './dto/signin-dto';
+import { Request, Response } from 'express';
+import { CacheInterceptor } from '@nestjs/cache-manager';
+import { AuthGuard } from 'src/guard/authGuard';
 
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBody,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
+
+@UseInterceptors(CacheInterceptor)
 @ApiTags('Users')
-@Controller('user')
+@Controller('users')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @Post()
-  @ApiOperation({ summary: 'Create a new user' })
-  @ApiResponse({
-    status: 201,
-    description: 'User successfully created',
-    type: UserEntity,
-  })
-  @ApiResponse({ status: 400, description: 'Validation error' })
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.userService.create(createUserDto);
+  @Post('signup')
+  @ApiOperation({ summary: 'Register new user and send OTP' })
+  @ApiBody({ type: CreateUserDto })
+  @ApiResponse({ status: 200, description: 'OTP sent to email' })
+  async signUp(@Body() createUserDto: CreateUserDto) {
+    return this.userService.signUpUser(createUserDto);
   }
 
-  @Get()
-  @ApiOperation({ summary: 'Get all users' })
-  @ApiResponse({
-    status: 200,
-    description: 'List of users',
-    type: [UserEntity],
-  })
-  findAll() {
-    return this.userService.findAll();
+  @Post('confirm-otp')
+  @ApiOperation({ summary: 'Confirm user OTP' })
+  @ApiBody({ type: ConfirmOtpDto })
+  @ApiResponse({ status: 200, description: 'OTP confirmed successfully' })
+  async confirmOtp(@Body() confirmOtpDto: ConfirmOtpDto) {
+    return this.userService.confirmOtp(confirmOtpDto);
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Get a user by ID' })
-  @ApiParam({ name: 'id', type: Number, description: 'User ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'User found',
-    type: UserEntity,
-  })
-  @ApiResponse({ status: 404, description: 'User not found' })
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.userService.findOne(id);
-  }
-
-  @Patch(':id')
-  @ApiOperation({ summary: 'Update a user by ID' })
-  @ApiParam({ name: 'id', type: Number, description: 'User ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'User successfully updated',
-    type: UserEntity,
-  })
-  @ApiResponse({ status: 404, description: 'User not found' })
-  update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateUserDto: UpdateUserDto,
+  @Post('signin')
+  @ApiOperation({ summary: 'Sign in user and set refresh token cookie' })
+  @ApiBody({ type: SignInUserDto })
+  @ApiResponse({ status: 200, description: 'Access token returned' })
+  async signIn(
+    @Body() userSignInDto: SignInUserDto,
+    @Res({ passthrough: true }) res: Response,
   ) {
-    return this.userService.update(id, updateUserDto);
+    return this.userService.signIn(userSignInDto, res);
   }
 
-  @Delete(':id')
-  @ApiOperation({ summary: 'Delete a user by ID' })
-  @ApiParam({ name: 'id', type: Number, description: 'User ID' })
-  @ApiResponse({ status: 200, description: 'User successfully deleted' })
-  @ApiResponse({ status: 404, description: 'User not found' })
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.userService.remove(id);
+  @UseGuards(AuthGuard)
+  @Get('me')
+  @ApiOperation({ summary: 'Get authenticated user profile' })
+  @ApiBearerAuth('access-token')
+  @ApiResponse({ status: 200, description: 'User profile returned' })
+  async getProfile(@Req() req: Request) {
+    return this.userService.authUserProfile(req);
   }
 }

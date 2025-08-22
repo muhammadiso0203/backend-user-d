@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Gender } from 'src/enum';
+import { Role } from 'src/enum';
 import {
   Column,
   CreateDateColumn,
@@ -21,15 +21,8 @@ export class UserEntity {
     example: 'John Doe',
     description: 'Full name of the user',
   })
-  @Column({ type: 'varchar', name: 'name' })
-  name: string;
-
-  @ApiProperty({
-    example: 'johndoe',
-    description: 'Unique username for the user',
-  })
-  @Column({ type: 'varchar', name: 'username', unique: true })
-  username: string;
+  @Column({ type: 'varchar', name: 'full_name' })
+  full_name: string;
 
   @ApiProperty({
     example: 'johndoe@example.com',
@@ -39,30 +32,27 @@ export class UserEntity {
   email: string;
 
   @ApiProperty({
-    example: '+998901234567',
-    description: 'Uzbekistan phone number',
-  })
-  @Column({ type: 'varchar', name: 'phone_number', unique: true })
-  phone_number: string;
-
-  @ApiProperty({
-    example: 'HashedPasswordHere',
-    description: 'Hashed password of the user',
+    example: 'PasswordHere',
+    description: 'Password of the user',
   })
   @Column({ type: 'varchar', name: 'password' })
   password: string;
 
   @ApiProperty({
-    example: 'MALE',
-    description: 'Gender of the user',
-    enum: Gender,
-  })
-  @Column({ type: 'varchar', name: 'gender', enum: Gender })
-  gender: Gender;
-
-  @ApiProperty({
     example: '2025-08-15T12:34:56.789Z',
     description: 'User creation timestamp',
+  })
+  @Column({
+    type: 'enum',
+    name: 'role',
+    enum: Role,
+    default: Role.USER,
+  })
+  role: Role;
+
+  @ApiProperty({
+    example: '2025-08-15T14:00:00.000Z',
+    description: 'User create timestamp',
   })
   @CreateDateColumn()
   createdAt: Date;

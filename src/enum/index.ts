@@ -3,3 +3,8 @@ export enum Gender {
   FEMALE = 'female',
   HIDING = 'hiding',
 }
+
+export enum Role {
+  USER = 'user',
+  ADMIN = 'admin',
+}

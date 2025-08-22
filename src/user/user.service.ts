@@ -1,154 +1,150 @@
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UserEntity } from './entities/user.entity';
 import { catchError } from 'src/lib/exception';
 import { successRes } from 'src/lib/success';
+import { generateOtp } from 'src/utils/otp-generator/otp-generator';
+import { MailService } from 'src/utils/mail/mail.service';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
+import { SignInUserDto } from './dto/signin-dto';
+import { TokenService } from 'src/utils/token/generateToken';
+import { writeToCookie } from 'src/utils/cookie/cookie';
+import { ConfirmOtpDto } from './dto/confirmOtp-dto';
+import { Request, Response } from 'express';
+import * as bcrypt from 'bcrypt';
+import { Role } from 'src/enum';
+
+export interface Payload {
+  id: number;
+  role: Role;
+}
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(UserEntity)
     private readonly userRepo: Repository<UserEntity>,
+    private readonly mailService: MailService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+    private readonly tokenService: TokenService,
   ) {}
-  async create(createUserDto: CreateUserDto) {
+
+  async signUpUser(createUserDto: CreateUserDto): Promise<object> {
     try {
-      const existsUserUsername = await this.userRepo.findOne({
-        where: { username: createUserDto.username },
-      });
-
-      if (existsUserUsername) {
-        throw new ConflictException(
-          `User with username ${createUserDto.username} already exists`,
-        );
-      }
-
-      const existsUserEmail = await this.userRepo.findOne({
+      const existsEmail = await this.userRepo.findOne({
         where: { email: createUserDto.email },
       });
 
-      if (existsUserEmail) {
+      if (existsEmail) {
         throw new ConflictException(
           `User with email ${createUserDto.email} already exists`,
         );
       }
 
-      const existsUserPhone = await this.userRepo.findOne({
-        where: { phone_number: createUserDto.phone_number },
-      });
+      const hashed_pass = await bcrypt.hash(createUserDto.password, 10);
 
-      if (existsUserPhone) {
-        throw new ConflictException(
-          `User with phone ${createUserDto.phone_number} already exists`,
-        );
-      }
+      const newUser = {
+        ...createUserDto,
+        password: hashed_pass,
+      };
 
-      const newUser = this.userRepo.create(createUserDto);
+      this.userRepo.create(createUserDto);
       await this.userRepo.save(newUser);
 
-      return successRes(newUser, 201);
+      const otp = generateOtp();
+      await this.mailService.sendOtp(
+        createUserDto.email,
+        'Welcome to online marketplace',
+        otp,
+      );
+      await this.cacheManager.set(createUserDto.email, otp, 120000);
+      return successRes(
+        {},
+        200,
+        `Otp sent to the email ${createUserDto.email}`,
+      );
     } catch (error) {
       return catchError(error);
     }
   }
 
-  async findAll() {
+  async confirmOtp(confirmOtpDto: ConfirmOtpDto): Promise<object> {
     try {
-      const users = await this.userRepo.find({ order: { createdAt: 'asc' } });
-      return successRes(users);
-    } catch (error) {
-      return catchError(error);
+      const { email, otp } = confirmOtpDto;
+      const user = await this.userRepo.findOne({ where: { email } });
+      if (!user)
+        throw new BadRequestException(
+          `User with email ${email} does not exist`,
+        );
+
+      const hasUser = await this.cacheManager.get(email);
+
+      if (!hasUser || hasUser !== otp)
+        throw new BadRequestException(`Incorrect or expired otp`);
+
+      return successRes(`Otp confirmed successfully`);
+    } catch (e) {
+      return catchError(e);
     }
   }
 
-  async findOne(id: number) {
+  async signIn(userSignInDto: SignInUserDto, res: Response): Promise<object> {
     try {
-      const existsUser = await this.userRepo.findOne({ where: { id } });
+      const { email, password } = userSignInDto;
 
-      if (!existsUser) {
-        throw new NotFoundException(`User with ID ${id} not found`);
+      const user = await this.userRepo.findOne({ where: { email } });
+
+      if (!user) {
+        throw new BadRequestException('Email or password incorrect');
       }
 
-      return successRes(existsUser);
+      const isPasswordMatch = await bcrypt.compare(password, user.password);
+
+      if (!isPasswordMatch) {
+        throw new BadRequestException('Email or password incorrect');
+      }
+
+      const { id, role } = user;
+      const payload: Payload = { id, role };
+
+      const accessToken = await this.tokenService.generateAccessToken(payload);
+      const refreshToken =
+        await this.tokenService.generateRefreshToken(payload);
+
+      writeToCookie(res, 'refreshTokenUser', refreshToken);
+
+      return successRes(accessToken);
     } catch (error) {
       return catchError(error);
     }
   }
 
-  async update(id: number, updateUserDto: UpdateUserDto) {
+  async authUserProfile(req: Request): Promise<any> {
     try {
-      if (updateUserDto.username != null) {
-        const existsUserUsername = await this.userRepo.findOne({
-          where: { username: updateUserDto.username },
-        });
+      if (req.user && 'id' in req.user) {
+        const id = req.user.id as number;
+        const user = await this.userRepo.findOne({ where: { id } });
 
-        if (existsUserUsername && existsUserUsername.id !== id) {
-          throw new ConflictException(
-            `User with username ${updateUserDto.username} already exists`,
-          );
+        if (!user) {
+          throw new NotFoundException(`User not found`);
         }
+
+        const authUser = {
+          full_name: user.full_name,
+          email: user.email,
+        };
+
+        return successRes(authUser);
       }
-
-      if (updateUserDto.email != null) {
-        const existsUserEmail = await this.userRepo.findOne({
-          where: { email: updateUserDto.email },
-        });
-
-        if (existsUserEmail && existsUserEmail.id !== id) {
-          throw new ConflictException(
-            `User with email ${updateUserDto.email} already exists`,
-          );
-        }
-      }
-
-      if (updateUserDto.phone_number != null) {
-        const existsUserPhone = await this.userRepo.findOne({
-          where: { phone_number: updateUserDto.phone_number },
-        });
-
-        if (existsUserPhone && existsUserPhone.id !== id) {
-          throw new ConflictException(
-            `User with phone ${updateUserDto.phone_number} already exists`,
-          );
-        }
-      }
-
-      const existsUser = await this.userRepo.findOne({ where: { id } });
-
-      if (!existsUser) {
-        throw new NotFoundException(`User with ID ${id} not found`);
-      }
-
-      const { affected } = await this.userRepo.update(id, updateUserDto);
-
-      if (!affected) {
-        throw new BadRequestException(`User with ID ${id} not updated`);
-      }
-
-      const updatedUser = await this.userRepo.findOne({ where: { id } });
-      return successRes(updatedUser);
-    } catch (error) {
-      return catchError(error);
-    }
-  }
-
-  async remove(id: number) {
-    try {
-      const existsUser = await this.userRepo.findOne({ where: { id } });
-
-      if (!existsUser) {
-        throw new NotFoundException(`User with ID ${id} not found`);
-      }
-
-      await this.userRepo.delete(id);
-      return successRes();
     } catch (error) {
       return catchError(error);
     }

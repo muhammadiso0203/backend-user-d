@@ -1,14 +1,11 @@
 import {
   IsEmail,
-  IsEnum,
   IsNotEmpty,
-  IsPhoneNumber,
   IsString,
   IsStrongPassword,
   MinLength,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { Gender } from 'src/enum';
 
 export class CreateUserDto {
   @ApiProperty({
@@ -19,17 +16,7 @@ export class CreateUserDto {
   @IsString()
   @IsNotEmpty()
   @MinLength(4)
-  name: string;
-
-  @ApiProperty({
-    example: 'johndoe',
-    description: 'Unique username for the user',
-    minLength: 4,
-  })
-  @IsString()
-  @IsNotEmpty()
-  @MinLength(4)
-  username: string;
+  full_name: string;
 
   @ApiProperty({
     example: 'johndoe@example.com',
@@ -38,14 +25,6 @@ export class CreateUserDto {
   @IsEmail()
   @IsNotEmpty()
   email: string;
-
-  @ApiProperty({
-    example: '+998901234567',
-    description: 'Uzbekistan phone number in international format',
-  })
-  @IsPhoneNumber('UZ')
-  @IsNotEmpty()
-  phone_number: string;
 
   @ApiProperty({
     example: 'Password123',
@@ -61,13 +40,4 @@ export class CreateUserDto {
   })
   @IsNotEmpty()
   password: string;
-
-  @ApiProperty({
-    example: 'male',
-    description: 'Gender of the user',
-    enum: Gender,
-  })
-  @IsEnum(Gender)
-  @IsNotEmpty()
-  gender: Gender;
 }

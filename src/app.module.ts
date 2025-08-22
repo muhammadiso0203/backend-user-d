@@ -3,6 +3,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserModule } from './user/user.module';
 import config from './config';
 import { UserEntity } from './user/entities/user.entity';
+import { CacheInterceptor, CacheModule } from '@nestjs/cache-manager';
+import { JwtModule } from '@nestjs/jwt';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 
 @Module({
   imports: [
@@ -13,7 +16,17 @@ import { UserEntity } from './user/entities/user.entity';
       autoLoadEntities: true,
       entities: [UserEntity],
     }),
+    CacheModule.register({
+      isGlobal: true,
+    }),
+    JwtModule.register({ global: true }),
     UserModule,
+  ],
+  providers: [
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: CacheInterceptor,
+    },
   ],
 })
 export class AppModule {}
