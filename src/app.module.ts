@@ -15,6 +15,9 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
       synchronize: true,
       autoLoadEntities: true,
       entities: [UserEntity],
+      ssl: {
+        rejectUnauthorized: false,
+      },
     }),
     CacheModule.register({
       isGlobal: true,
