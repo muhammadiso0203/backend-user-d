@@ -3,6 +3,7 @@ import {
   ConflictException,
   Inject,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -22,6 +23,9 @@ import { ConfirmOtpDto } from './dto/confirmOtp-dto';
 import { Request, Response } from 'express';
 import * as bcrypt from 'bcrypt';
 import { Role } from 'src/enum';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { FileService } from 'src/utils/file/file.service';
+import { FileEntity } from './entities/file.entity';
 
 export interface Payload {
   id: number;
@@ -33,9 +37,12 @@ export class UserService {
   constructor(
     @InjectRepository(UserEntity)
     private readonly userRepo: Repository<UserEntity>,
+    @InjectRepository(FileEntity)
+    private readonly fileRepo: Repository<FileEntity>,
     private readonly mailService: MailService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
     private readonly tokenService: TokenService,
+    private fileService: FileService,
   ) {}
 
   async signUpUser(createUserDto: CreateUserDto): Promise<object> {
@@ -145,6 +152,79 @@ export class UserService {
 
         return successRes(authUser);
       }
+    } catch (error) {
+      return catchError(error);
+    }
+  }
+
+  async updateUser(id: number, updateUserDto: UpdateUserDto) {
+    try {
+      const existsUser = await this.userRepo.findOne({ where: { id } });
+
+      if (!existsUser) {
+        throw new NotFoundException(`User with ID ${id} not found`);
+      }
+
+      const { affected } = await this.userRepo.update(id, updateUserDto);
+
+      if (!affected) {
+        throw new BadRequestException(`User with ID ${id} not updated`);
+      }
+
+      const updatedUser = await this.userRepo.findOne({ where: { id } });
+
+      return successRes(updatedUser);
+    } catch (error) {
+      return catchError(error);
+    }
+  }
+
+  async deleteUser(id: number) {
+    try {
+      const existsUser = await this.userRepo.findOne({ where: { id } });
+
+      if (!existsUser) {
+        throw new NotFoundException(`User with ID ${id} not found`);
+      }
+
+      await this.userRepo.delete(id);
+      return successRes();
+    } catch (error) {
+      return catchError(error);
+    }
+  }
+
+  async uploadImage(file?: Express.Multer.File) {
+    try {
+      if (!file) {
+        throw new BadRequestException('No file uploaded');
+      }
+
+      const uploadedPath = await this.fileService.createFile(file);
+
+      if (!uploadedPath) {
+        throw new InternalServerErrorException('File upload failed');
+      }
+
+      const fileEntity = this.fileRepo.create({ path: uploadedPath });
+      const savedFile = await this.fileRepo.save(fileEntity);
+
+      return successRes(savedFile, 200, 'File uploaded and saved successfully');
+    } catch (error) {
+      return catchError(error);
+    }
+  }
+
+  async deleteImageById(fileId: number) {
+    try {
+      const file = await this.fileRepo.findOne({ where: { id: fileId } });
+      if (!file) throw new NotFoundException('File not found');
+      
+      await this.fileService.deleteFile(file.path);
+
+      await this.fileRepo.delete(fileId);
+
+      return successRes({}, 200, 'Image deleted successfully');
     } catch (error) {
       return catchError(error);
     }

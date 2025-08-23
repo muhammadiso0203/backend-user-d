@@ -6,6 +6,9 @@ import { UserEntity } from './user/entities/user.entity';
 import { CacheInterceptor, CacheModule } from '@nestjs/cache-manager';
 import { JwtModule } from '@nestjs/jwt';
 import { APP_INTERCEPTOR } from '@nestjs/core';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { resolve } from 'path';
+import { FileEntity } from './user/entities/file.entity';
 
 @Module({
   imports: [
@@ -14,10 +17,14 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
       url: config.DB_URL,
       synchronize: true,
       autoLoadEntities: true,
-      entities: [UserEntity],
+      entities: [UserEntity, FileEntity],
       ssl: {
         rejectUnauthorized: false,
       },
+    }),
+    ServeStaticModule.forRoot({
+      rootPath: resolve(__dirname, '..', '..', 'uploads'),
+      serveRoot: '/uploads',
     }),
     CacheModule.register({
       isGlobal: true,
