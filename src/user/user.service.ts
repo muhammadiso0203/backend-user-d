@@ -25,7 +25,7 @@ import { Role } from 'src/enum';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { FileService } from 'src/utils/file/file.service';
 import { FileEntity } from './entities/file.entity';
-import { sendOtpEmail } from 'src/utils/mail/mail.sender';
+import { MailService } from 'src/utils/mail/mail.service';
 
 export interface Payload {
   id: number;
@@ -39,6 +39,7 @@ export class UserService {
     private readonly userRepo: Repository<UserEntity>,
     @InjectRepository(FileEntity)
     private readonly fileRepo: Repository<FileEntity>,
+    private readonly mailService: MailService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
     private readonly tokenService: TokenService,
     private fileService: FileService,
@@ -66,7 +67,12 @@ export class UserService {
       await this.userRepo.save(newUser);
 
       const otp = generateOtp();
-      sendOtpEmail(createUserDto.email,otp)
+      await this.mailService.sendOtp(
+        createUserDto.email,
+        'Welcome to online marketplace',
+        otp,
+      );
+
       await this.cacheManager.set(createUserDto.email, otp, 120000);
       return successRes(
         {},
