@@ -219,12 +219,21 @@ export class UserService {
     try {
       const file = await this.fileRepo.findOne({ where: { id: fileId } });
       if (!file) throw new NotFoundException('File not found');
-      
+
       await this.fileService.deleteFile(file.path);
 
       await this.fileRepo.delete(fileId);
 
       return successRes({}, 200, 'Image deleted successfully');
+    } catch (error) {
+      return catchError(error);
+    }
+  }
+
+  async findAllImages() {
+    try {
+      const images = await this.fileRepo.find();
+      return successRes(images);
     } catch (error) {
       return catchError(error);
     }

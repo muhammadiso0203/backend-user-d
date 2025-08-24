@@ -6,7 +6,6 @@ import {
   Param,
   Patch,
   Post,
-  Query,
   Req,
   Res,
   UseGuards,
@@ -22,7 +21,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { Request, Response } from 'express';
 import { CacheInterceptor } from '@nestjs/cache-manager';
 import { AuthGuard } from 'src/guard/authGuard';
-import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 import {
   ApiTags,
@@ -31,7 +30,6 @@ import {
   ApiBody,
   ApiBearerAuth,
   ApiConsumes,
-  ApiQuery,
   ApiParam,
 } from '@nestjs/swagger';
 
@@ -269,5 +267,12 @@ export class UserController {
   })
   async deleteImage(@Param('id', ParseIntPipe) fileId: number) {
     return this.userService.deleteImageById(fileId);
+  }
+
+  @ApiOperation({ summary: 'Get all images' })
+  @ApiResponse({ status: 200, description: 'List of images' })
+  @Get('images')
+  async findAllImages() {
+    return this.userService.findAllImages();
   }
 }
