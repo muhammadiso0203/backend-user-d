@@ -13,7 +13,6 @@ import { UserEntity } from './entities/user.entity';
 import { catchError } from 'src/lib/exception';
 import { successRes } from 'src/lib/success';
 import { generateOtp } from 'src/utils/otp-generator/otp-generator';
-import { MailService } from 'src/utils/mail/mail.service';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { SignInUserDto } from './dto/signin-dto';
@@ -26,6 +25,7 @@ import { Role } from 'src/enum';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { FileService } from 'src/utils/file/file.service';
 import { FileEntity } from './entities/file.entity';
+import { sendOtpEmail } from 'src/utils/mail/mail.sender';
 
 export interface Payload {
   id: number;
@@ -39,7 +39,6 @@ export class UserService {
     private readonly userRepo: Repository<UserEntity>,
     @InjectRepository(FileEntity)
     private readonly fileRepo: Repository<FileEntity>,
-    private readonly mailService: MailService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
     private readonly tokenService: TokenService,
     private fileService: FileService,
@@ -59,20 +58,15 @@ export class UserService {
 
       const hashed_pass = await bcrypt.hash(createUserDto.password, 10);
 
-      const newUser = {
+      const newUser = this.userRepo.create({
         ...createUserDto,
         password: hashed_pass,
-      };
+      });
 
-      this.userRepo.create(createUserDto);
       await this.userRepo.save(newUser);
 
       const otp = generateOtp();
-      await this.mailService.sendOtp(
-        createUserDto.email,
-        'Welcome to online marketplace',
-        otp,
-      );
+      sendOtpEmail(createUserDto.email,otp)
       await this.cacheManager.set(createUserDto.email, otp, 120000);
       return successRes(
         {},
