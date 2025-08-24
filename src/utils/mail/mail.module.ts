@@ -10,7 +10,7 @@ import config from 'src/config';
         transport: {
           host: config.SMTP_HOST,
           port: config.SMTP_PORT,
-          secure: true,
+          secure: false,
           auth: {
             user: config.SMTP_USER,
             pass: config.SMTP_PASS,
