@@ -9,7 +9,8 @@ import config from 'src/config';
       useFactory: async () => ({
         transport: {
           host: config.SMTP_HOST,
-          secure: false,
+          port: config.SMTP_PORT,
+          secure: true,
           auth: {
             user: config.SMTP_USER,
             pass: config.SMTP_PASS,
