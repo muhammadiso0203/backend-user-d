@@ -8,7 +8,8 @@ import { JwtModule } from '@nestjs/jwt';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { resolve } from 'path';
-import { FileEntity } from './user/entities/file.entity';
+import { ImagesModule } from './images/images.module';
+import { FileEntity } from './images/entities/image.entity';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { FileEntity } from './user/entities/file.entity';
     }),
     JwtModule.register({ global: true }),
     UserModule,
+    ImagesModule,
   ],
   providers: [
     {
